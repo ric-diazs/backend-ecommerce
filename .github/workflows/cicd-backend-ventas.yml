@@ -7,7 +7,7 @@ on:
       - "ventas/**"
 
 jobs:
-  build-push-deploy-despachos:
+  build-push-deploy-ventas:
     runs-on: ubuntu-latest
 
     steps:
