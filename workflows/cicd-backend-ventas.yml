@@ -1,0 +1,65 @@
+name: CI/CD E-Commerce - Backend Ventas
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "ventas/**"
+
+jobs:
+  build-push-deploy-despachos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v3
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login en Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Compilacion de imagen de MySQL
+        run: |
+          cd db-mysql
+          docker build -t db-mysql .
+
+      - name: Configuracion de Java (Temurin) y se habilita cache de Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Compilacion de JAR e imagen de Ventas y push a ECR
+        run: |
+          cd ventas/Springboot-API-REST
+          mvn -B clean package -DskipTests
+          docker build -t backend-ventas .
+          docker tag backend-ventas:latest ${{ secrets.ECR_REPO_URL_VENTAS }}:latest
+          docker push ${{ secrets.ECR_REPO_URL_VENTAS }}:latest
+
+      - name: Desplegar backend-ventas via SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids ${{ secrets.EC2_BACKEND_INSTANCE_ID }} \
+            --document-name "AWS-RunShellScript" \
+            --comment "Actualizar backend-ventas desde ECR" \
+            --parameters '{"commands":[
+              "set -e",
+              "aws ecr get-login-password --region '${{ secrets.AWS_REGION }}' | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
+              "docker pull ${{ secrets.ECR_REPO_URL_VENTAS }}:latest",
+              "docker stop db-mysql || true",
+              "docker rm db-mysql || true",
+              "docker stop backend-ventas || true",
+              "docker rm backend-ventas || true",
+              "docker run -d --name db-mysql -p 3306:3306 -e MYSQL_DATABASE=${{ secrets.DB_NAME }} -e MYSQL_USER=${{ secrets.DB_USERNAME }} -e MYSQL_PASSWORD=${{ secrets.DB_PASSWORD }} -e MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }} -v mysql-data:/var/lib/mysql mysql:8.4.9-oraclelinux9",
+              "docker run -d --name backend-ventas -p 8081:8081 ${{ secrets.ECR_REPO_URL_VENTAS }}:latest"
+            ]}' \
+            --output text

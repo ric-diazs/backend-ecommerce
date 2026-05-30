@@ -1,0 +1,65 @@
+name: CI/CD E-Commerce - Backend Despachos
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "despachos/**"
+
+jobs:
+  build-push-deploy-despachos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v3
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login en Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Compilacion de imagen de MySQL
+        run: |
+          cd db-mysql
+          docker build -t db-mysql .
+
+      - name: Configuracion de Java (Temurin) y se habilita cache de Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Compilacion de JAR e imagen de Despachos y push a ECR
+        run: |
+          cd despachos/Springboot-API-REST-DESPACHO
+          mvn -B clean package -DskipTests
+          docker build -t backend-despachos .
+          docker tag backend-despachos:latest ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest
+          docker push ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest
+
+      - name: Desplegar backend-despachos via SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids ${{ secrets.EC2_BACKEND_INSTANCE_ID }} \
+            --document-name "AWS-RunShellScript" \
+            --comment "Actualizar backend-despachos desde ECR" \
+            --parameters '{"commands":[
+              "set -e",
+              "aws ecr get-login-password --region '${{ secrets.AWS_REGION }}' | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
+              "docker pull ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest",
+              "docker stop db-mysql || true",
+              "docker rm db-mysql || true",
+              "docker stop backend-despachos || true",
+              "docker rm backend-despachos || true",
+              "docker run -d --name db-mysql -p 3306:3306 -e MYSQL_DATABASE=${{ secrets.DB_NAME }} -e MYSQL_USER=${{ secrets.DB_USERNAME }} -e MYSQL_PASSWORD=${{ secrets.DB_PASSWORD }} -e MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }} -v mysql-data:/var/lib/mysql mysql:8.4.9-oraclelinux9",
+              "docker run -d --name backend-despachos -p 8081:8081 ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest"
+            ]}' \
+            --output text
