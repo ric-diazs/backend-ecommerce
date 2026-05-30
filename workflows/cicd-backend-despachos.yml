@@ -34,8 +34,13 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: '17'
           cache: maven
+
+      - name: Verificar versiones de Java y Maven
+        run: |
+          java -version
+          mvn -v
 
       - name: Compilacion de JAR e imagen de Despachos y push a ECR
         run: |
