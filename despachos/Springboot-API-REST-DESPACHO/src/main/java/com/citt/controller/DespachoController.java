@@ -27,12 +27,14 @@ public class DespachoController {
     @PostMapping
     public ResponseEntity<Despacho> crearDespacho(
             @RequestBody Despacho despacho){
+        Despacho saved = despachoService.saveDespacho(despacho);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{idDespacho}")
-                .buildAndExpand(despacho.getIdDespacho())
+                //.buildAndExpand(despacho.getIdDespacho())
+                .buildAndExpand(saved.getIdDespacho())
                 .toUri();
-        despachoService.saveDespacho(despacho);
+        //despachoService.saveDespacho(despacho);
         return ResponseEntity.created(location).body(despacho);
     }
 
