@@ -11,6 +11,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 
+// Comentario para github actions
+
 @Entity
 @Data
 @AllArgsConstructor
