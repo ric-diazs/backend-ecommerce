@@ -32,4 +32,66 @@ public class Venta {
     private LocalDate fechaCompra;
     @NotNull(message = "El campo de despacho debe ser proporcionado")
     private Boolean despachoGenerado = false;
+
+    public Venta() {
+    }
+
+    public Venta(Long idVenta, String direccionCompra, int valorCompra, LocalDate fechaCompra, Boolean despachoGenerado) {
+        this.idVenta = idVenta;
+        this.direccionCompra = direccionCompra;
+        this.valorCompra = valorCompra;
+        this.fechaCompra = fechaCompra;
+        this.despachoGenerado = despachoGenerado;
+    }
+
+    public Long getIdVenta() {
+        return idVenta;
+    }
+
+    public void setIdVenta(Long idVenta) {
+        this.idVenta = idVenta;
+    }
+
+    public String getDireccionCompra() {
+        return direccionCompra;
+    }
+
+    public void setDireccionCompra(String direccionCompra) {
+        this.direccionCompra = direccionCompra;
+    }
+
+    public int getValorCompra() {
+        return valorCompra;
+    }
+
+    public void setValorCompra(int valorCompra) {
+        this.valorCompra = valorCompra;
+    }
+
+    public LocalDate getFechaCompra() {
+        return fechaCompra;
+    }
+
+    public void setFechaCompra(LocalDate fechaCompra) {
+        this.fechaCompra = fechaCompra;
+    }
+
+    public Boolean getDespachoGenerado() {
+        return despachoGenerado;
+    }
+
+    public void setDespachoGenerado(Boolean despachoGenerado) {
+        this.despachoGenerado = despachoGenerado;
+    }
+
+    @Override
+    public String toString() {
+        return "Venta{" +
+                "idVenta=" + idVenta +
+                ", direccionCompra='" + direccionCompra + '\'' +
+                ", valorCompra=" + valorCompra +
+                ", fechaCompra=" + fechaCompra +
+                ", despachoGenerado=" + despachoGenerado +
+                '}';
+    }
 }
